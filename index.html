@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Is Jared Busy?</title>
+<meta name="description" content="One page. One question. Is Jared busy right now?">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="card">
+    <h1>Is Jared busy?</h1>
+
+    <div id="status" class="status status-unknown">
+      <span class="status-dot"></span>
+      <span id="status-word">checking…</span>
+    </div>
+    <p id="status-detail" class="detail"></p>
+
+    <h2>A typical week</h2>
+    <p class="sub">Green blocks are when he's usually free. Everything else, assume busy.</p>
+    <div id="week" class="week"></div>
+
+    <p class="note">
+      Schedule a little more complicated than this? Text him — this page covers
+      the usual pattern, not one-offs.
+    </p>
+
+    <footer>
+      <span>isjaredbusy · a public service</span>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
