@@ -11,6 +11,12 @@
    bus commute stay put unless the term changes.
    ============================================================ */
 
+// ── Booking ─────────────────────────────────────────────
+// Real reservations via Cal.com (free). Paste the event link path here once
+// the event exists, e.g. "jared/hangout". While empty, tapping a free block
+// copies a text request instead.
+const BOOKING_LINK = "";
+
 // Tue/Thu school day — bus in, four classes, then straight to the gym
 // (shorts in the backpack). Fall 2026.
 const SCHOOL_DAY = [
@@ -251,22 +257,128 @@ function fallbackCopy(text, done) {
   done();
 }
 
-// Tap a free block → copies "Are you free Wednesday 2:25pm–midnight?"
+// Tap a free block → real booking popup if Cal.com is wired up,
+// otherwise copies "Are you free Wednesday 2:25pm–midnight?"
 // The visitor pastes it into a text to him. Static site, no accounts, no spam exposure.
 function onWeekClick(ev) {
   const el = ev.target.closest(".slot-free");
   if (!el) return;
+  if (BOOKING_LINK) { openBooking(); return; }
   copyText(`Are you free ${el.dataset.day} ${el.dataset.range}?`, () =>
     toast("Copied — paste it into a text to him."));
 }
 
+// Cal.com element-click embed, loaded lazily only once a booking link exists.
+function ensureCal(cb) {
+  if (window.Cal && window.Cal.loaded) return cb();
+  if (!document.getElementById("cal-embed-js")) {
+    const s = document.createElement("script");
+    s.id = "cal-embed-js";
+    s.src = "https://app.cal.com/embed/embed.js";
+    s.async = true;
+    document.head.appendChild(s);
+  }
+  let tries = 0;
+  const h = setInterval(() => {
+    tries++;
+    if (window.Cal && window.Cal.loaded) {
+      clearInterval(h);
+      try {
+        window.Cal("init", { origin: "https://cal.com" });
+        window.Cal("ui", { theme: "dark", styles: { branding: { brandColor: "#34d399" } } });
+      } catch (e) { /* embed will still open with defaults */ }
+      cb();
+    } else if (tries > 50) {
+      clearInterval(h);
+      window.open("https://cal.com/" + BOOKING_LINK, "_blank", "noopener");
+    }
+  }, 100);
+}
+
+function openBooking() {
+  ensureCal(() => {
+    let btn = document.getElementById("cal-proxy");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "cal-proxy";
+      btn.style.display = "none";
+      btn.type = "button";
+      document.body.appendChild(btn);
+    }
+    btn.setAttribute("data-cal-link", BOOKING_LINK);
+    btn.click();
+  });
+}
+
+// ── "Find a window" ───────────────────────────────────────
+// Scans the next 7 days for free windows fitting the needed duration.
+function nextFreeWindows(needMin, count) {
+  const out = [];
+  const now = new Date();
+  for (let i = 0; i < 8 && out.length < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const day = d.getDay();
+    const nowMin = i === 0 ? now.getHours() * 60 + now.getMinutes() : 0;
+    for (const f of freeSpansFor(day)) {
+      const s = Math.max(f.start, nowMin);
+      if (f.end - s >= needMin) {
+        out.push({ day, date: d, start: s, end: f.end, spanStart: f.start });
+        if (out.length >= count) break;
+      }
+    }
+  }
+  return out;
+}
+
+function fmtDayDate(d) {
+  return `${DAY_NAMES[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function clearPicks() {
+  document.querySelectorAll(".slot-pick").forEach((el) => el.classList.remove("slot-pick"));
+}
+
+function onFind() {
+  const needMin = parseInt(document.getElementById("need").value, 10);
+  const result = document.getElementById("find-result");
+  clearPicks();
+  const wins = nextFreeWindows(needMin, 3);
+  if (!wins.length) {
+    result.textContent = `No ${needMin}-minute window in the next week — try a shorter one?`;
+    return;
+  }
+  result.textContent = "Next up: " + wins
+    .map((w) => `${fmtDayDate(w.date)}, ${fmtMin(w.start)}–${fmtMin(w.end)}`)
+    .join(" · ");
+  // Highlight the matching free blocks in the grid.
+  let first = null;
+  for (const w of wins) {
+    const el = [...document.querySelectorAll(".slot-free")].find(
+      (e) => e.dataset.day === DAY_NAMES[w.day] && e.dataset.range.split("–")[0] === fmtMin(w.spanStart));
+    if (el) {
+      el.classList.add("slot-pick");
+      if (!first) first = el;
+    }
+  }
+  if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 if (typeof document !== "undefined") {
   render();
-  document.getElementById("week").addEventListener("click", onWeekClick);
-  document.getElementById("week").addEventListener("keydown", (ev) => {
+  const weekEl = document.getElementById("week");
+  weekEl.addEventListener("click", onWeekClick);
+  weekEl.addEventListener("keydown", (ev) => {
     if ((ev.key === "Enter" || ev.key === " ") && ev.target.classList.contains("slot-free")) {
       ev.preventDefault();
       onWeekClick(ev);
     }
   });
+  document.getElementById("find-btn").addEventListener("click", onFind);
+  if (BOOKING_LINK) {
+    const bookBtn = document.getElementById("book-btn");
+    bookBtn.hidden = false;
+    bookBtn.addEventListener("click", openBooking);
+    document.querySelector(".sub").textContent =
+      "Colored blocks are when he's tied up — class, work, commuting, or gym. Green blocks are free: tap one to book it.";
+  }
 }
