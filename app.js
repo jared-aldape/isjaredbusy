@@ -15,7 +15,7 @@
 // Real reservations via Cal.com (free). Paste the event link path here once
 // the event exists, e.g. "jared/hangout". While empty, tapping a free block
 // copies a text request instead.
-const BOOKING_LINK = "";
+const BOOKING_LINK = "jared-aldape/hang-out";
 
 // Tue/Thu school day — bus in, four classes, then straight to the gym
 // (shorts in the backpack). Fall 2026.
