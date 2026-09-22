@@ -350,6 +350,6 @@ if (typeof document !== "undefined") {
     bookBtn.hidden = false;
     bookBtn.setAttribute("data-cal-link", BOOKING_LINK);
     document.querySelector(".sub").textContent =
-      "Colored blocks are when he's tied up — class, work, commuting, or gym. Green blocks are free: tap one to book it.";
+      "Colored blocks are when he's tied up — class, work, commuting, or gym. Outlined blocks are free: tap one to book it.";
   }
 }
