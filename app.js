@@ -1,28 +1,44 @@
 /* ============================================================
    ISJAUREDBUSY — YOUR SCHEDULE LIVES HERE.
 
-   Each day lists the windows when Jared is FREE, in 24h "HH:MM".
-   An empty array [] means busy all day.
-   Times are in the VIEWER'S local timezone (keep it simple).
+   Each day lists BUSY blocks as [start, end, label] in 24h "HH:MM".
+   Labels: "class", "work", "commute" — each gets its own color.
+   Free time is anything NOT in a block.
+   Times are in the VIEWER'S local timezone (Jared's on Pacific).
 
-   Example: Monday free 9–12 and 1–5:
-     1: [["09:00","12:00"],["13:00","17:00"]],
-
-   >>>>>>>>>>>>>>>>>>>>> PLACEHOLDER SCHEDULE <<<<<<<<<<<<<<<<<<<<<
-   Replace this with Jared's real availability.
+   WORK SHIFTS change with the weekly roster: update the "work"
+   blocks below whenever a new schedule comes in. Classes and the
+   bus commute stay put unless the term changes.
    ============================================================ */
 
-const SCHEDULE = {
-  0: [],                                        // Sunday
-  1: [["09:00","12:00"],["13:00","17:00"]],     // Monday
-  2: [],                                        // Tuesday
-  3: [["09:00","12:00"],["13:00","17:00"]],     // Wednesday
-  4: [],                                        // Thursday
-  5: [["09:00","12:00"]],                      // Friday
-  6: [["10:00","14:00"]],                      // Saturday
+// Tue/Thu school day — bus in, four classes, bus home (Fall 2026)
+const SCHOOL_DAY = [
+  ["08:50", "09:35", "commute"], // bus to campus (~45 min)
+  ["09:35", "11:00", "class"],   // American Government & Politics
+  ["11:05", "12:55", "class"],   // Humans and the Environment
+  ["13:05", "14:20", "class"],   // Precolumbian Art & Architecture
+  ["16:20", "18:20", "class"],   // Academic Reading and Writing
+  ["18:20", "19:29", "commute"], // bus home (~45 min)
+];
+
+// Work shifts — week of Sep 18–24. UPDATE when the roster changes.
+const WORK_SHIFT = [
+  ["16:00", "23:59", "work"],    // 4pm–midnight
+];
+
+const BLOCKS = {
+  0: WORK_SHIFT, // Sunday
+  1: WORK_SHIFT, // Monday
+  2: SCHOOL_DAY, // Tuesday
+  3: [],         // Wednesday — wide open
+  4: SCHOOL_DAY, // Thursday
+  5: WORK_SHIFT, // Friday
+  6: WORK_SHIFT, // Saturday
 };
 
-const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DOING = { class: "In class", work: "At work", commute: "Commuting" };
+const MERGE_GAP_MIN = 30; // blocks closer than this read as one busy stretch
 
 /* ---------- engine (you shouldn't need to touch this) ---------- */
 
@@ -35,35 +51,70 @@ function fmt(hhmm) {
   let [h, m] = hhmm.split(":").map(Number);
   const ap = h >= 12 ? "pm" : "am";
   h = h % 12 || 12;
-  return `${h}${m ? ":" + String(m).padStart(2,"0") : ""}${ap}`;
+  return `${h}${m ? ":" + String(m).padStart(2, "0") : ""}${ap}`;
 }
 
-function currentStatus() {
-  const now = new Date();
+function fmtEnd(hhmm) {
+  return hhmm === "23:59" ? "midnight" : fmt(hhmm);
+}
+
+// Merge blocks separated by less than MERGE_GAP_MIN into busy spans,
+// so a 5-minute gap between classes doesn't read as "free".
+function spansFor(day) {
+  const blocks = (BLOCKS[day] || [])
+    .map(([s, e, label]) => ({ start: toMinutes(s), end: toMinutes(e), startStr: s, endStr: e, label }))
+    .sort((a, b) => a.start - b.start);
+  const spans = [];
+  for (const b of blocks) {
+    const cur = spans[spans.length - 1];
+    if (cur && b.start - cur.end <= MERGE_GAP_MIN) {
+      if (b.end > cur.end) { cur.end = b.end; cur.endStr = b.endStr; }
+      cur.blocks.push(b);
+    } else {
+      spans.push({ start: b.start, end: b.end, startStr: b.startStr, endStr: b.endStr, blocks: [b] });
+    }
+  }
+  return spans;
+}
+
+// What is he doing at this minute? Uses the block he's in,
+// or the upcoming block if he's in a small merged gap.
+function labelFor(span, mins) {
+  const b = span.blocks.find((x) => mins >= x.start && mins < x.end)
+         || span.blocks.find((x) => x.start > mins)
+         || span.blocks[span.blocks.length - 1];
+  return DOING[b.label] || "Busy";
+}
+
+function nextBusyDay(fromDay) {
+  for (let i = 1; i <= 7; i++) {
+    const d = (fromDay + i) % 7;
+    const spans = spansFor(d);
+    if (spans.length) return { daysOut: i, day: d, span: spans[0] };
+  }
+  return null;
+}
+
+function currentStatus(now = new Date()) {
   const day = now.getDay();
   const mins = now.getHours() * 60 + now.getMinutes();
-  const slots = SCHEDULE[day] || [];
+  const spans = spansFor(day);
 
-  for (const [start, end] of slots) {
-    if (mins >= toMinutes(start) && mins < toMinutes(end)) {
-      return { free: true, until: end };
+  for (const sp of spans) {
+    if (mins >= sp.start && mins < sp.end) {
+      return { free: false, detail: `${labelFor(sp, mins)} until ${fmtEnd(sp.endStr)}.` };
+    }
+    if (mins < sp.start) {
+      return { free: true, detail: `Free right now (until ${fmt(sp.startStr)}).` };
     }
   }
-  // find next free window today
-  for (const [start] of slots) {
-    if (mins < toMinutes(start)) {
-      return { free: false, next: `Free today at ${fmt(start)}` };
-    }
-  }
-  // otherwise, next day with availability
-  for (let i = 1; i <= 7; i++) {
-    const d = (day + i) % 7;
-    if ((SCHEDULE[d] || []).length) {
-      const label = i === 1 ? "tomorrow" : DAY_NAMES[d];
-      return { free: false, next: `Next free ${label} at ${fmt(SCHEDULE[d][0][0])}` };
-    }
-  }
-  return { free: false, next: "No free windows on record — text him." };
+
+  // Nothing left today — point at the next busy day.
+  const nxt = nextBusyDay(day);
+  if (!nxt) return { free: true, detail: "Free — nothing on the books." };
+  const first = nxt.span.blocks[0];
+  const when = nxt.daysOut === 1 ? "tomorrow" : DAY_NAMES[nxt.day];
+  return { free: true, detail: `Free for the rest of today. Next up: ${first.label} ${when} at ${fmt(first.startStr)}.` };
 }
 
 function render() {
@@ -73,31 +124,25 @@ function render() {
   const detail = document.getElementById("status-detail");
 
   badge.classList.remove("status-unknown", "status-free", "status-busy");
-  if (s.free) {
-    badge.classList.add("status-free");
-    word.textContent = "Nope.";
-    detail.textContent = `He's free right now (until ${fmt(s.until)}). Say hi.`;
-  } else {
-    badge.classList.add("status-busy");
-    word.textContent = "Yep.";
-    detail.textContent = s.next + ".";
-  }
+  badge.classList.add(s.free ? "status-free" : "status-busy");
+  word.textContent = s.free ? "Nope." : "Yep.";
+  detail.textContent = s.free ? s.detail + " Say hi." : s.detail;
 
   const week = document.getElementById("week");
   week.innerHTML = "";
-  // show Monday-first
-  const order = [1,2,3,4,5,6,0];
+  const today = new Date().getDay();
+  const order = [1, 2, 3, 4, 5, 6, 0]; // Monday-first
   for (const d of order) {
     const cell = document.createElement("div");
-    cell.className = "day";
-    const slots = SCHEDULE[d] || [];
+    cell.className = "day" + (d === today ? " today" : "");
+    const blocks = (BLOCKS[d] || []).slice().sort((a, b) => toMinutes(a[0]) - toMinutes(b[0]));
     cell.innerHTML =
       `<span class="day-name">${DAY_NAMES[d]}</span>` +
-      (slots.length
-        ? slots.map(([a,b]) => `<div class="slot">${fmt(a)}–${fmt(b)}</div>`).join("")
-        : `<div class="slot none">busy</div>`);
+      (blocks.length
+        ? blocks.map(([s, e, l]) => `<div class="slot slot-${l}">${l} ${fmt(s)}–${fmt(e)}</div>`).join("")
+        : `<div class="slot none">free all day</div>`);
     week.appendChild(cell);
   }
 }
 
-render();
+if (typeof document !== "undefined") render();
