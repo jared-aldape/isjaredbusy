@@ -27,7 +27,7 @@ const SCHOOL_DAY = [
 ];
 
 // Work shifts — week of Sep 18–24. UPDATE when the roster changes.
-// Work shifts (week of Sep 18–24 — update weekly): leave home 3:05pm,
+// Work shifts are fixed Fri–Mon: leave home 3:05pm,
 // bus ~41 min to the site, shift 4pm–midnight.
 const WORK_DAY = [
   ["15:05", "15:46", "commute"], // bus to work (~41 min)
@@ -54,11 +54,23 @@ const AM_CALIS = [
   ["10:00", "10:30", "gym"],     // bedroom calisthenics
 ];
 
+// Splits & backbend progression — dedicated ~30 min block, 2-3x/week (per EFA docs).
+// Sun/Mon: separate block right after the Deep Flexibility session (needs a warm
+// body and full attention, not folded into the wind-down).
+// Wednesday: after the post-gym flexibility — no shift that day, room for a second session.
+const REST_DAY_MOBILITY = [
+  ["10:30", "11:00", "gym"], // deep flexibility (30 min)
+  ["11:00", "11:30", "gym"], // splits & backbend progression (~30 min)
+];
+const WED_SPLITS = [
+  ["13:55", "14:25", "gym"], // splits & backbend progression (~30 min)
+];
+
 const BLOCKS = {
-  0: [...AM_CALIS, ...WORK_DAY, ...RIDE_HOME], // Sunday (+ ride home from Sat shift)
-  1: [...AM_CALIS, ...WORK_DAY, ...RIDE_HOME], // Monday (+ ride home from Sun shift)
+  0: [...AM_CALIS, ...REST_DAY_MOBILITY, ...WORK_DAY, ...RIDE_HOME], // Sunday (+ ride home from Sat shift)
+  1: [...AM_CALIS, ...REST_DAY_MOBILITY, ...WORK_DAY, ...RIDE_HOME], // Monday (+ ride home from Sun shift)
   2: [...SCHOOL_DAY, ...RIDE_HOME], // Tuesday (+ ride home from Mon shift)
-  3: [...AM_CALIS, ...GYM_DAY],     // Wednesday
+  3: [...AM_CALIS, ...GYM_DAY, ...WED_SPLITS], // Wednesday
   4: SCHOOL_DAY,                    // Thursday
   5: [...AM_CALIS, ...GYM_DAY, ...WORK_DAY],      // Friday — gym, then work
   6: [...AM_CALIS, ...GYM_DAY, ...WORK_DAY, ...RIDE_HOME], // Saturday (+ ride home from Fri shift)
