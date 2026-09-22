@@ -18,13 +18,14 @@
     <p id="status-detail" class="detail"></p>
 
     <h2>A typical week</h2>
-    <p class="sub">Colored blocks are when he's tied up — class, work, commuting, or gym. Everything else, he's around.</p>
+    <p class="sub">Colored blocks are when he's tied up — class, work, commuting, or gym. Green blocks are free: tap one to copy a booking request.</p>
     <div id="week" class="week"></div>
     <div class="legend">
       <span><i class="dot dot-class"></i>class</span>
       <span><i class="dot dot-work"></i>work</span>
       <span><i class="dot dot-commute"></i>commute</span>
       <span><i class="dot dot-gym"></i>gym</span>
+      <span><i class="dot dot-free"></i>free — tap to book</span>
     </div>
 
     <p class="note">
@@ -36,6 +37,7 @@
       <span>isjaredbusy · a public service</span>
     </footer>
   </main>
+  <div id="toast" role="status" aria-live="polite"></div>
   <script src="app.js"></script>
 </body>
 </html>

@@ -175,6 +175,43 @@ h2 {
 .dot-work { background: #fb923c; }
 .dot-commute { background: #a78bfa; }
 .dot-gym { background: #34d399; }
+.dot-free { background: transparent; border: 1.5px dashed #34d399; }
+
+/* Free blocks: explicit, tappable, bookable */
+.slot-free {
+  background: rgba(52, 211, 153, 0.07);
+  color: #6ee7b7;
+  border: 1px dashed rgba(52, 211, 153, 0.45);
+  cursor: pointer;
+}
+.slot-free:hover,
+.slot-free:focus-visible {
+  background: rgba(52, 211, 153, 0.18);
+  outline: none;
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(8px);
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 50;
+  max-width: 90vw;
+  text-align: center;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 .note {
   margin-top: 28px;

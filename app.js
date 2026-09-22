@@ -66,14 +66,20 @@ const WED_SPLITS = [
   ["13:55", "14:25", "gym"], // splits & backbend progression (~30 min)
 ];
 
+// Fri/Sat AM: short flexibility version (hamstring, calf, quad only) after calisthenics.
+// ~10 min — duration is my estimate, the doc doesn't specify.
+const AM_SHORT_FLEX = [
+  ["10:30", "10:40", "gym"],
+];
+
 const BLOCKS = {
   0: [...AM_CALIS, ...REST_DAY_MOBILITY, ...WORK_DAY, ...RIDE_HOME], // Sunday (+ ride home from Sat shift)
   1: [...AM_CALIS, ...REST_DAY_MOBILITY, ...WORK_DAY, ...RIDE_HOME], // Monday (+ ride home from Sun shift)
   2: [...SCHOOL_DAY, ...RIDE_HOME], // Tuesday (+ ride home from Mon shift)
   3: [...AM_CALIS, ...GYM_DAY, ...WED_SPLITS], // Wednesday
   4: SCHOOL_DAY,                    // Thursday
-  5: [...AM_CALIS, ...GYM_DAY, ...WORK_DAY],      // Friday — gym, then work
-  6: [...AM_CALIS, ...GYM_DAY, ...WORK_DAY, ...RIDE_HOME], // Saturday (+ ride home from Fri shift)
+  5: [...AM_CALIS, ...AM_SHORT_FLEX, ...GYM_DAY, ...WORK_DAY],      // Friday — gym, then work
+  6: [...AM_CALIS, ...AM_SHORT_FLEX, ...GYM_DAY, ...WORK_DAY, ...RIDE_HOME], // Saturday (+ ride home from Fri shift)
 };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -99,6 +105,32 @@ function fmt(hhmm) {
 
 function fmtEnd(hhmm) {
   return hhmm === "23:59" ? "midnight" : fmt(hhmm);
+}
+
+function fmtMin(m) {
+  if (m >= 24 * 60) return "midnight";
+  const h = Math.floor(m / 60) % 24, mm = m % 60;
+  const ap = h >= 12 ? "pm" : "am";
+  const hh = h % 12 || 12;
+  return `${hh}${mm ? ":" + String(mm).padStart(2, "0") : ""}${ap}`;
+}
+
+// Free time is first-class: the complement of the busy spans, clipped to
+// 6am–midnight (nobody's booking 3am). Slivers under 15 min aren't bookable.
+const FREE_DAY_START = "06:00";
+const FREE_MIN_MIN = 15;
+function freeSpansFor(day) {
+  const spans = spansFor(day);
+  const start = toMinutes(FREE_DAY_START), end = 24 * 60;
+  const free = [];
+  let cursor = start;
+  for (const sp of spans) {
+    if (sp.start > cursor) free.push({ start: cursor, end: Math.min(sp.start, end) });
+    cursor = Math.max(cursor, sp.end);
+    if (cursor >= end) break;
+  }
+  if (cursor < end) free.push({ start: cursor, end });
+  return free.filter((f) => f.end - f.start >= FREE_MIN_MIN);
 }
 
 // Merge blocks separated by less than MERGE_GAP_MIN into busy spans,
@@ -178,14 +210,63 @@ function render() {
   for (const d of order) {
     const cell = document.createElement("div");
     cell.className = "day" + (d === today ? " today" : "");
-    const blocks = (BLOCKS[d] || []).slice().sort((a, b) => toMinutes(a[0]) - toMinutes(b[0]));
+    const busy = ((BLOCKS[d] || []).slice().sort((a, b) => toMinutes(a[0]) - toMinutes(b[0])))
+      .map(([s, e, l]) => ({ start: toMinutes(s), end: toMinutes(e), startStr: s, endStr: e, label: l, free: false }));
+    const free = freeSpansFor(d).map((f) => ({ ...f, free: true }));
+    const segs = [...busy, ...free].sort((a, b) => a.start - b.start);
     cell.innerHTML =
       `<span class="day-name">${DAY_NAMES[d]}</span>` +
-      (blocks.length
-        ? blocks.map(([s, e, l]) => `<div class="slot slot-${l}">${l} ${fmt(s)}–${fmt(e)}</div>`).join("")
+      (segs.length
+        ? segs.map((sg) => sg.free
+            ? `<div class="slot slot-free" data-day="${DAY_NAMES[d]}" data-range="${fmtMin(sg.start)}–${fmtMin(sg.end)}" role="button" tabindex="0">free ${fmtMin(sg.start)}–${fmtMin(sg.end)}</div>`
+            : `<div class="slot slot-${sg.label}">${sg.label} ${fmt(sg.startStr)}–${fmt(sg.endStr)}</div>`).join("")
         : `<div class="slot none">free all day</div>`);
     week.appendChild(cell);
   }
 }
 
-if (typeof document !== "undefined") render();
+function toast(msg) {
+  const t = document.getElementById("toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function copyText(text, done) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (e) { /* ignore */ }
+  document.body.removeChild(ta);
+  done();
+}
+
+// Tap a free block → copies "Are you free Wednesday 2:25pm–midnight?"
+// The visitor pastes it into a text to him. Static site, no accounts, no spam exposure.
+function onWeekClick(ev) {
+  const el = ev.target.closest(".slot-free");
+  if (!el) return;
+  copyText(`Are you free ${el.dataset.day} ${el.dataset.range}?`, () =>
+    toast("Copied — paste it into a text to him."));
+}
+
+if (typeof document !== "undefined") {
+  render();
+  document.getElementById("week").addEventListener("click", onWeekClick);
+  document.getElementById("week").addEventListener("keydown", (ev) => {
+    if ((ev.key === "Enter" || ev.key === " ") && ev.target.classList.contains("slot-free")) {
+      ev.preventDefault();
+      onWeekClick(ev);
+    }
+  });
+}
