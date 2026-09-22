@@ -192,7 +192,7 @@ function currentStatus(now = new Date()) {
 
   // Nothing left today — point at the next busy day.
   const nxt = nextBusyDay(day);
-  if (!nxt) return { free: true, detail: "Free — nothing on the books." };
+  if (!nxt) return { free: true, detail: "Free - nothing on the books." };
   const first = nxt.span.blocks[0];
   const when = nxt.daysOut === 1 ? "tomorrow" : DAY_NAMES[nxt.day];
   return { free: true, detail: `Free for the rest of today. Next up: ${first.label} ${when} at ${fmt(first.startStr)}.` };
@@ -224,8 +224,8 @@ function render() {
       `<span class="day-name">${DAY_NAMES[d]}</span>` +
       (segs.length
         ? segs.map((sg) => sg.free
-            ? `<div class="slot slot-free" data-day="${DAY_NAMES[d]}" data-range="${fmtMin(sg.start)}–${fmtMin(sg.end)}"${BOOKING_LINK ? ` data-cal-link="${BOOKING_LINK}"` : ""} role="button" tabindex="0">free ${fmtMin(sg.start)}–${fmtMin(sg.end)}</div>`
-            : `<div class="slot slot-${sg.label}">${sg.label} ${fmt(sg.startStr)}–${fmt(sg.endStr)}</div>`).join("")
+            ? `<div class="slot slot-free" data-day="${DAY_NAMES[d]}" data-range="${fmtMin(sg.start)}-${fmtMin(sg.end)}"${BOOKING_LINK ? ` data-cal-link="${BOOKING_LINK}"` : ""} role="button" tabindex="0">free ${fmtMin(sg.start)}-${fmtMin(sg.end)}</div>`
+            : `<div class="slot slot-${sg.label}">${sg.label} ${fmt(sg.startStr)}-${fmt(sg.endStr)}</div>`).join("")
         : `<div class="slot none">free all day</div>`);
     week.appendChild(cell);
   }
@@ -257,15 +257,34 @@ function fallbackCopy(text, done) {
   done();
 }
 
+// FF-style menu blip, synthesized — no audio files needed.
+let _ac = null;
+function blip(freq = 660, dur = 0.07) {
+  try {
+    _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = _ac.createOscillator();
+    const g = _ac.createGain();
+    o.type = "square";
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.035, _ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + dur);
+    o.connect(g);
+    g.connect(_ac.destination);
+    o.start();
+    o.stop(_ac.currentTime + dur);
+  } catch (e) { /* no audio, no problem */ }
+}
+
 // Tap a free block → real booking popup if Cal.com is wired up,
 // otherwise copies "Are you free Wednesday 2:25pm–midnight?"
 // The visitor pastes it into a text to him. Static site, no accounts, no spam exposure.
 function onWeekClick(ev) {
   const el = ev.target.closest(".slot-free");
   if (!el) return;
+  blip();
   if (BOOKING_LINK) return; // Cal.com's embed opens the popup via data-cal-link
   copyText(`Are you free ${el.dataset.day} ${el.dataset.range}?`, () =>
-    toast("Copied — paste it into a text to him."));
+    toast("Copied - paste it into a text to him."));
 }
 
 // Cal.com element-click embed. The official loader stub is in index.html;
@@ -306,22 +325,23 @@ function clearPicks() {
 }
 
 function onFind() {
+  blip(520);
   const needMin = parseInt(document.getElementById("need").value, 10);
   const result = document.getElementById("find-result");
   clearPicks();
   const wins = nextFreeWindows(needMin, 3);
   if (!wins.length) {
-    result.textContent = `No ${needMin}-minute window in the next week — try a shorter one?`;
+    result.textContent = `No ${needMin}-minute window in the next week - try a shorter one?`;
     return;
   }
   result.textContent = "Next up: " + wins
-    .map((w) => `${fmtDayDate(w.date)}, ${fmtMin(w.start)}–${fmtMin(w.end)}`)
-    .join(" · ");
+    .map((w) => `${fmtDayDate(w.date)}, ${fmtMin(w.start)}-${fmtMin(w.end)}`)
+    .join(" | ");
   // Highlight the matching free blocks in the grid.
   let first = null;
   for (const w of wins) {
     const el = [...document.querySelectorAll(".slot-free")].find(
-      (e) => e.dataset.day === DAY_NAMES[w.day] && e.dataset.range.split("–")[0] === fmtMin(w.spanStart));
+      (e) => e.dataset.day === DAY_NAMES[w.day] && e.dataset.range.split("-")[0] === fmtMin(w.spanStart));
     if (el) {
       el.classList.add("slot-pick");
       if (!first) first = el;
@@ -349,7 +369,8 @@ if (typeof document !== "undefined") {
     const bookBtn = document.getElementById("book-btn");
     bookBtn.hidden = false;
     bookBtn.setAttribute("data-cal-link", BOOKING_LINK);
+    bookBtn.addEventListener("click", () => blip());
     document.querySelector(".sub").textContent =
-      "Colored blocks are when he's tied up — class, work, commuting, or gym. Outlined blocks are free: tap one to book it.";
+      "Colored blocks are when he's tied up - class, work, commuting, or gym. Outlined blocks are free: tap one to book it.";
   }
 }

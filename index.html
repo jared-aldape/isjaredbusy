@@ -9,6 +9,9 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Is Jared busy?">
 <meta property="og:description" content="One page. One question. Live availability, bookable free time, and a find-a-window tool.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -17,20 +20,20 @@
 
     <div id="status" class="status status-unknown">
       <span class="status-dot"></span>
-      <span id="status-word">checking…</span>
+      <span id="status-word">checking...</span>
     </div>
     <p id="status-detail" class="detail"></p>
     <button id="book-btn" type="button" hidden>Book a time</button>
 
     <h2>A typical week</h2>
-    <p class="sub">Colored blocks are when he's tied up — class, work, commuting, or gym. Outlined blocks are free: tap one to copy a booking request.</p>
+    <p class="sub">Colored blocks are when he's tied up - class, work, commuting, or gym. Outlined blocks are free: tap one to copy a booking request.</p>
     <div id="week" class="week"></div>
     <div class="legend">
       <span><i class="dot dot-class"></i>class</span>
       <span><i class="dot dot-work"></i>work</span>
       <span><i class="dot dot-commute"></i>commute</span>
       <span><i class="dot dot-gym"></i>gym</span>
-      <span><i class="dot dot-free"></i>free — tap to book</span>
+      <span><i class="dot dot-free"></i>free - tap to book</span>
     </div>
 
     <div class="finder">
@@ -46,12 +49,12 @@
     <p id="find-result" class="detail" aria-live="polite"></p>
 
     <p class="note">
-      Workouts follow a fixed pattern, and work shifts are fixed too (Fri–Mon, 4pm–midnight).
+      Workouts follow a fixed pattern, and work shifts are fixed too (Fri-Mon, 4pm-midnight).
       One-offs and changes? Text him.
     </p>
 
     <footer>
-      <span>isjaredbusy · a public service · times in your local timezone</span>
+      <span>isjaredbusy | a public service | times in your local timezone</span>
     </footer>
   </main>
   <div id="toast" role="status" aria-live="polite"></div>
