@@ -224,7 +224,7 @@ function render() {
       `<span class="day-name">${DAY_NAMES[d]}</span>` +
       (segs.length
         ? segs.map((sg) => sg.free
-            ? `<div class="slot slot-free" data-day="${DAY_NAMES[d]}" data-range="${fmtMin(sg.start)}–${fmtMin(sg.end)}" role="button" tabindex="0">free ${fmtMin(sg.start)}–${fmtMin(sg.end)}</div>`
+            ? `<div class="slot slot-free" data-day="${DAY_NAMES[d]}" data-range="${fmtMin(sg.start)}–${fmtMin(sg.end)}"${BOOKING_LINK ? ` data-cal-link="${BOOKING_LINK}"` : ""} role="button" tabindex="0">free ${fmtMin(sg.start)}–${fmtMin(sg.end)}</div>`
             : `<div class="slot slot-${sg.label}">${sg.label} ${fmt(sg.startStr)}–${fmt(sg.endStr)}</div>`).join("")
         : `<div class="slot none">free all day</div>`);
     week.appendChild(cell);
@@ -263,51 +263,18 @@ function fallbackCopy(text, done) {
 function onWeekClick(ev) {
   const el = ev.target.closest(".slot-free");
   if (!el) return;
-  if (BOOKING_LINK) { openBooking(); return; }
+  if (BOOKING_LINK) return; // Cal.com's embed opens the popup via data-cal-link
   copyText(`Are you free ${el.dataset.day} ${el.dataset.range}?`, () =>
     toast("Copied — paste it into a text to him."));
 }
 
-// Cal.com element-click embed, loaded lazily only once a booking link exists.
-function ensureCal(cb) {
-  if (window.Cal && window.Cal.loaded) return cb();
-  if (!document.getElementById("cal-embed-js")) {
-    const s = document.createElement("script");
-    s.id = "cal-embed-js";
-    s.src = "https://app.cal.com/embed/embed.js";
-    s.async = true;
-    document.head.appendChild(s);
-  }
-  let tries = 0;
-  const h = setInterval(() => {
-    tries++;
-    if (window.Cal && window.Cal.loaded) {
-      clearInterval(h);
-      try {
-        window.Cal("init", { origin: "https://cal.com" });
-        window.Cal("ui", { theme: "dark", styles: { branding: { brandColor: "#34d399" } } });
-      } catch (e) { /* embed will still open with defaults */ }
-      cb();
-    } else if (tries > 50) {
-      clearInterval(h);
-      window.open("https://cal.com/" + BOOKING_LINK, "_blank", "noopener");
-    }
-  }, 100);
-}
-
-function openBooking() {
-  ensureCal(() => {
-    let btn = document.getElementById("cal-proxy");
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.id = "cal-proxy";
-      btn.style.display = "none";
-      btn.type = "button";
-      document.body.appendChild(btn);
-    }
-    btn.setAttribute("data-cal-link", BOOKING_LINK);
-    btn.click();
-  });
+// Cal.com element-click embed. The official loader stub is in index.html;
+// init here at page load so embed.js is ready when a block gets tapped.
+function initBooking() {
+  try {
+    window.Cal("init", { origin: "https://cal.com" });
+    window.Cal("ui", { theme: "dark", styles: { branding: { brandColor: "#34d399" } } });
+  } catch (e) { /* popup unavailable; taps fall back to a new tab */ }
 }
 
 // ── "Find a window" ───────────────────────────────────────
@@ -368,16 +335,20 @@ if (typeof document !== "undefined") {
   const weekEl = document.getElementById("week");
   weekEl.addEventListener("click", onWeekClick);
   weekEl.addEventListener("keydown", (ev) => {
-    if ((ev.key === "Enter" || ev.key === " ") && ev.target.classList.contains("slot-free")) {
+    const el = ev.target.closest(".slot-free");
+    if (!el) return;
+    if (ev.key === "Enter" || ev.key === " ") {
       ev.preventDefault();
-      onWeekClick(ev);
+      if (BOOKING_LINK) el.click(); // Cal.com's embed opens the popup via data-cal-link
+      else onWeekClick(ev);
     }
   });
   document.getElementById("find-btn").addEventListener("click", onFind);
   if (BOOKING_LINK) {
+    initBooking();
     const bookBtn = document.getElementById("book-btn");
     bookBtn.hidden = false;
-    bookBtn.addEventListener("click", openBooking);
+    bookBtn.setAttribute("data-cal-link", BOOKING_LINK);
     document.querySelector(".sub").textContent =
       "Colored blocks are when he's tied up — class, work, commuting, or gym. Green blocks are free: tap one to book it.";
   }
