@@ -11,14 +11,18 @@
    bus commute stay put unless the term changes.
    ============================================================ */
 
-// Tue/Thu school day — bus in, four classes, bus home (Fall 2026)
+// Tue/Thu school day — bus in, four classes, then straight to the gym
+// (shorts in the backpack). Fall 2026.
 const SCHOOL_DAY = [
+  ["06:30", "07:00", "gym"],     // AM calisthenics (from the EFA protocol)
   ["08:50", "09:35", "commute"], // bus to campus (~45 min)
   ["09:35", "11:00", "class"],   // American Government & Politics
   ["11:05", "12:55", "class"],   // Humans and the Environment
   ["13:05", "14:20", "class"],   // Precolumbian Art & Architecture
   ["16:20", "18:20", "class"],   // Academic Reading and Writing
-  ["18:20", "19:29", "commute"], // bus home (~45 min)
+  ["18:20", "19:33", "commute"], // bus to Planet Fitness (~43 min)
+  ["19:33", "20:59", "gym"],     // workout (~1 hr) + snack next door
+  ["20:59", "21:17", "commute"], // bus home (~19 min)
 ];
 
 // Work shifts — week of Sep 18–24. UPDATE when the roster changes.
@@ -26,18 +30,24 @@ const WORK_SHIFT = [
   ["16:00", "23:59", "work"],    // 4pm–midnight
 ];
 
+// Ride home after a shift — Jorge picks him up, home by ~12:10am.
+// Lives on the morning AFTER the shift (Sun/Mon shifts → Mon/Tue 12:10am, etc.)
+const RIDE_HOME = [
+  ["00:00", "00:10", "commute"],
+];
+
 const BLOCKS = {
-  0: WORK_SHIFT, // Sunday
-  1: WORK_SHIFT, // Monday
-  2: SCHOOL_DAY, // Tuesday
-  3: [],         // Wednesday — wide open
-  4: SCHOOL_DAY, // Thursday
-  5: WORK_SHIFT, // Friday
-  6: WORK_SHIFT, // Saturday
+  0: [...WORK_SHIFT, ...RIDE_HOME], // Sunday (+ ride home from Sat shift)
+  1: [...WORK_SHIFT, ...RIDE_HOME], // Monday (+ ride home from Sun shift)
+  2: [...SCHOOL_DAY, ...RIDE_HOME], // Tuesday (+ ride home from Mon shift)
+  3: [],                            // Wednesday — wide open
+  4: SCHOOL_DAY,                    // Thursday
+  5: WORK_SHIFT,                     // Friday
+  6: [...WORK_SHIFT, ...RIDE_HOME], // Saturday (+ ride home from Fri shift)
 };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DOING = { class: "In class", work: "At work", commute: "Commuting" };
+const DOING = { class: "In class", work: "At work", commute: "Commuting", gym: "At the gym" };
 const MERGE_GAP_MIN = 30; // blocks closer than this read as one busy stretch
 
 /* ---------- engine (you shouldn't need to touch this) ---------- */
