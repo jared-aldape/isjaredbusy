@@ -23,6 +23,7 @@ const SCHOOL_DAY = [
   ["18:20", "19:33", "commute"], // bus to Planet Fitness (~43 min)
   ["19:33", "20:59", "gym"],     // workout (~1 hr) + snack next door
   ["20:59", "21:17", "commute"], // bus home (~19 min)
+  ["21:17", "21:47", "gym"],     // deep flexibility after the gym
 ];
 
 // Work shifts — week of Sep 18–24. UPDATE when the roster changes.
@@ -45,21 +46,30 @@ const GYM_DAY = [
   ["11:00", "11:30", "commute"], // bus to Planet Fitness (~20 min)
   ["11:30", "13:00", "gym"],     // workout (~1 hr)
   ["13:00", "13:25", "commute"], // bus home (~23 min)
+  ["13:25", "13:55", "gym"],     // deep flexibility after the gym
+];
+
+// Non-school mornings: bedroom calisthenics at 10am, every day.
+const AM_CALIS = [
+  ["10:00", "10:30", "gym"],     // bedroom calisthenics
 ];
 
 const BLOCKS = {
-  0: [...WORK_DAY, ...RIDE_HOME], // Sunday (+ ride home from Sat shift)
-  1: [...WORK_DAY, ...RIDE_HOME], // Monday (+ ride home from Sun shift)
+  0: [...AM_CALIS, ...WORK_DAY, ...RIDE_HOME], // Sunday (+ ride home from Sat shift)
+  1: [...AM_CALIS, ...WORK_DAY, ...RIDE_HOME], // Monday (+ ride home from Sun shift)
   2: [...SCHOOL_DAY, ...RIDE_HOME], // Tuesday (+ ride home from Mon shift)
-  3: GYM_DAY,                       // Wednesday — gym midday
+  3: [...AM_CALIS, ...GYM_DAY],     // Wednesday
   4: SCHOOL_DAY,                    // Thursday
-  5: [...GYM_DAY, ...WORK_DAY],      // Friday — gym, then work
-  6: [...GYM_DAY, ...WORK_DAY, ...RIDE_HOME], // Saturday (+ ride home from Fri shift)
+  5: [...AM_CALIS, ...GYM_DAY, ...WORK_DAY],      // Friday — gym, then work
+  6: [...AM_CALIS, ...GYM_DAY, ...WORK_DAY, ...RIDE_HOME], // Saturday (+ ride home from Fri shift)
 };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DOING = { class: "In class", work: "At work", commute: "Commuting", gym: "At the gym" };
-const MERGE_GAP_MIN = 30; // blocks closer than this read as one busy stretch
+// Merge blocks separated by less than MERGE_GAP_MIN into busy spans,
+// so a 5-minute gap between classes doesn't read as "free".
+// (Kept small on purpose: a real 30-min breather between workouts IS free time.)
+const MERGE_GAP_MIN = 10;
 
 /* ---------- engine (you shouldn't need to touch this) ---------- */
 
