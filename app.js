@@ -14,7 +14,7 @@
 // Tue/Thu school day — bus in, four classes, then straight to the gym
 // (shorts in the backpack). Fall 2026.
 const SCHOOL_DAY = [
-  ["06:30", "07:00", "gym"],     // AM calisthenics (from the EFA protocol)
+  ["06:30", "07:00", "gym"],     // AM calisthenics (bedroom, per EFA protocol)
   ["08:50", "09:35", "commute"], // bus to campus (~45 min)
   ["09:35", "11:00", "class"],   // American Government & Politics
   ["11:05", "12:55", "class"],   // Humans and the Environment
@@ -26,7 +26,10 @@ const SCHOOL_DAY = [
 ];
 
 // Work shifts — week of Sep 18–24. UPDATE when the roster changes.
-const WORK_SHIFT = [
+// Work shifts (week of Sep 18–24 — update weekly): leave home 3:05pm,
+// bus ~41 min to the site, shift 4pm–midnight.
+const WORK_DAY = [
+  ["15:05", "15:46", "commute"], // bus to work (~41 min)
   ["16:00", "23:59", "work"],    // 4pm–midnight
 ];
 
@@ -36,14 +39,22 @@ const RIDE_HOME = [
   ["00:00", "00:10", "commute"],
 ];
 
+// Non-school workout days (Wed/Fri/Sat): bus to Planet Fitness,
+// ~1 hr session, bus home. Kept consistent.
+const GYM_DAY = [
+  ["11:00", "11:30", "commute"], // bus to Planet Fitness (~20 min)
+  ["11:30", "13:00", "gym"],     // workout (~1 hr)
+  ["13:00", "13:25", "commute"], // bus home (~23 min)
+];
+
 const BLOCKS = {
-  0: [...WORK_SHIFT, ...RIDE_HOME], // Sunday (+ ride home from Sat shift)
-  1: [...WORK_SHIFT, ...RIDE_HOME], // Monday (+ ride home from Sun shift)
+  0: [...WORK_DAY, ...RIDE_HOME], // Sunday (+ ride home from Sat shift)
+  1: [...WORK_DAY, ...RIDE_HOME], // Monday (+ ride home from Sun shift)
   2: [...SCHOOL_DAY, ...RIDE_HOME], // Tuesday (+ ride home from Mon shift)
-  3: [],                            // Wednesday — wide open
+  3: GYM_DAY,                       // Wednesday — gym midday
   4: SCHOOL_DAY,                    // Thursday
-  5: WORK_SHIFT,                     // Friday
-  6: [...WORK_SHIFT, ...RIDE_HOME], // Saturday (+ ride home from Fri shift)
+  5: [...GYM_DAY, ...WORK_DAY],      // Friday — gym, then work
+  6: [...GYM_DAY, ...WORK_DAY, ...RIDE_HOME], // Saturday (+ ride home from Fri shift)
 };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
