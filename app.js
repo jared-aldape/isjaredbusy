@@ -89,7 +89,22 @@ const BLOCKS = {
 };
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DOING = { class: "In class", work: "At work", commute: "Commuting", gym: "At the gym" };
+const DOING = { class: "In class", work: "At work", commute: "Commuting", gym: "At the gym", appointment: "In an appointment" };
+
+// One-off exceptions — date-specific busy blocks (YYYY-MM-DD).
+// Privacy rule: public site never shows PII from calendar — generic "appointment" label only.
+const ONE_OFFS = {
+  "2026-10-07": [["13:00", "13:30", "appointment"]], // VA benefits — shown generic for privacy
+};
+
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function blocksFor(day, key) {
+  const base = (BLOCKS[day] || []).slice();
+  if (key && ONE_OFFS[key]) base.push(...ONE_OFFS[key]);
+  return base;
+}
 // Merge blocks separated by less than MERGE_GAP_MIN into busy spans,
 // so a 5-minute gap between classes doesn't read as "free".
 // (Kept small on purpose: a real 30-min breather between workouts IS free time.)
@@ -125,8 +140,8 @@ function fmtMin(m) {
 // 6am–midnight (nobody's booking 3am). Slivers under 15 min aren't bookable.
 const FREE_DAY_START = "06:00";
 const FREE_MIN_MIN = 15;
-function freeSpansFor(day) {
-  const spans = spansFor(day);
+function freeSpansFor(day, key) {
+  const spans = spansFor(day, key);
   const start = toMinutes(FREE_DAY_START), end = 24 * 60;
   const free = [];
   let cursor = start;
@@ -141,8 +156,8 @@ function freeSpansFor(day) {
 
 // Merge blocks separated by less than MERGE_GAP_MIN into busy spans,
 // so a 5-minute gap between classes doesn't read as "free".
-function spansFor(day) {
-  const blocks = (BLOCKS[day] || [])
+function spansFor(day, key) {
+  const blocks = blocksFor(day, key)
     .map(([s, e, label]) => ({ start: toMinutes(s), end: toMinutes(e), startStr: s, endStr: e, label }))
     .sort((a, b) => a.start - b.start);
   const spans = [];
@@ -178,8 +193,9 @@ function nextBusyDay(fromDay) {
 
 function currentStatus(now = new Date()) {
   const day = now.getDay();
+  const key = dateKey(now);
   const mins = now.getHours() * 60 + now.getMinutes();
-  const spans = spansFor(day);
+  const spans = spansFor(day, key);
 
   for (const sp of spans) {
     if (mins >= sp.start && mins < sp.end) {
@@ -208,6 +224,26 @@ function render() {
   badge.classList.add(s.free ? "status-free" : "status-busy");
   word.textContent = s.free ? "Nope." : "Yep.";
   detail.textContent = s.free ? s.detail + " Say hi." : s.detail;
+
+  // Upcoming one-offs — generic labels only, no PII
+  const todayKey = dateKey(new Date());
+  const upcoming = Object.keys(ONE_OFFS).sort()
+    .filter((k) => k >= todayKey)
+    .slice(0, 3);
+  let excEl = document.getElementById("exceptions");
+  if (upcoming.length) {
+    if (!excEl) {
+      excEl = document.createElement("p");
+      excEl.id = "exceptions";
+      excEl.className = "detail";
+      detail.after(excEl);
+    }
+    excEl.textContent = "Also busy: " + upcoming.map((k) => {
+      const dd = new Date(k + "T12:00:00");
+      const bl = ONE_OFFS[k].map(([s, e, l]) => `${fmt(s)}-${fmt(e)} ${l}`).join(", ");
+      return `${DAY_NAMES[dd.getDay()]} ${dd.getMonth() + 1}/${dd.getDate()}: ${bl}`;
+    }).join(" | ");
+  } else if (excEl) excEl.remove();
 
   const week = document.getElementById("week");
   week.innerHTML = "";
@@ -304,8 +340,9 @@ function nextFreeWindows(needMin, count) {
   for (let i = 0; i < 8 && out.length < count; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     const day = d.getDay();
+    const key = dateKey(d);
     const nowMin = i === 0 ? now.getHours() * 60 + now.getMinutes() : 0;
-    for (const f of freeSpansFor(day)) {
+    for (const f of freeSpansFor(day, key)) {
       const s = Math.max(f.start, nowMin);
       if (f.end - s >= needMin) {
         out.push({ day, date: d, start: s, end: f.end, spanStart: f.start });

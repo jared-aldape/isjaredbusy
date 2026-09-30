@@ -198,6 +198,12 @@ h2 {
   border-color: var(--ff-green);
 }
 
+.slot-appointment {
+  background: rgba(251, 191, 36, 0.18);
+  color: #ffe9a8;
+  border-color: #fbbf24;
+}
+
 .slot.none {
   background: rgba(148, 163, 184, 0.06);
   border-style: dashed;
@@ -243,6 +249,7 @@ h2 {
 .dot-work { background: #fb923c; }
 .dot-commute { background: #a78bfa; }
 .dot-gym { background: var(--ff-green); }
+.dot-appointment { background: #fbbf24; }
 .dot-free { background: transparent; border: 2px dashed #94a3b8; box-shadow: none; width: 8px; height: 8px; }
 
 /* FF dialogue-box toast */
