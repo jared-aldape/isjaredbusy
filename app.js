@@ -245,22 +245,35 @@ function render() {
     }).join(" | ");
   } else if (excEl) excEl.remove();
 
+  // Forward-looking rolling 7 days starting today — never shows past dates,
+  // so visitors only ever see (and book) real upcoming availability.
   const week = document.getElementById("week");
   week.innerHTML = "";
-  const today = new Date().getDay();
-  const order = [1, 2, 3, 4, 5, 6, 0]; // Monday-first
-  for (const d of order) {
+  const nowD = new Date();
+  const nowMin = nowD.getHours() * 60 + nowD.getMinutes();
+  for (let i = 0; i < 7; i++) {
+    const dt = new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate() + i);
+    const d = dt.getDay();
+    const key = dateKey(dt);
+    const dayLabel = i === 0 ? "Today" : fmtDayDate(dt);
     const cell = document.createElement("div");
-    cell.className = "day" + (d === today ? " today" : "");
-    const busy = ((BLOCKS[d] || []).slice().sort((a, b) => toMinutes(a[0]) - toMinutes(b[0])))
+    cell.className = "day" + (i === 0 ? " today" : "");
+    // blocksFor(key) folds date-specific one-offs (e.g. appointments) into the grid.
+    const busy = (blocksFor(d, key).slice().sort((a, b) => toMinutes(a[0]) - toMinutes(b[0])))
       .map(([s, e, l]) => ({ start: toMinutes(s), end: toMinutes(e), startStr: s, endStr: e, label: l, free: false }));
-    const free = freeSpansFor(d).map((f) => ({ ...f, free: true }));
+    let free = freeSpansFor(d, key).map((f) => ({ ...f, free: true }));
+    if (i === 0) {
+      // Clip today's free time to what's actually left — no booking the past.
+      free = free
+        .map((f) => ({ ...f, start: Math.max(f.start, nowMin) }))
+        .filter((f) => f.end - f.start >= FREE_MIN_MIN);
+    }
     const segs = [...busy, ...free].sort((a, b) => a.start - b.start);
     cell.innerHTML =
-      `<span class="day-name">${DAY_NAMES[d]}</span>` +
+      `<span class="day-name">${dayLabel}</span>` +
       (segs.length
         ? segs.map((sg) => sg.free
-            ? `<div class="slot slot-free" data-day="${DAY_NAMES[d]}" data-range="${fmtMin(sg.start)}-${fmtMin(sg.end)}"${BOOKING_LINK ? ` data-cal-link="${BOOKING_LINK}"` : ""} role="button" tabindex="0">free ${fmtMin(sg.start)}-${fmtMin(sg.end)}</div>`
+            ? `<div class="slot slot-free" data-day="${dayLabel}" data-range="${fmtMin(sg.start)}-${fmtMin(sg.end)}"${BOOKING_LINK ? ` data-cal-link="${BOOKING_LINK}"` : ""} role="button" tabindex="0">free ${fmtMin(sg.start)}-${fmtMin(sg.end)}</div>`
             : `<div class="slot slot-${sg.label}">${sg.label} ${fmt(sg.startStr)}-${fmt(sg.endStr)}</div>`).join("")
         : `<div class="slot none">free all day</div>`);
     week.appendChild(cell);
@@ -345,7 +358,7 @@ function nextFreeWindows(needMin, count) {
     for (const f of freeSpansFor(day, key)) {
       const s = Math.max(f.start, nowMin);
       if (f.end - s >= needMin) {
-        out.push({ day, date: d, start: s, end: f.end, spanStart: f.start });
+        out.push({ day, date: d, label: i === 0 ? "Today" : fmtDayDate(d), start: s, end: f.end, spanStart: f.start });
         if (out.length >= count) break;
       }
     }
@@ -378,7 +391,7 @@ function onFind() {
   let first = null;
   for (const w of wins) {
     const el = [...document.querySelectorAll(".slot-free")].find(
-      (e) => e.dataset.day === DAY_NAMES[w.day] && e.dataset.range.split("-")[0] === fmtMin(w.spanStart));
+      (e) => e.dataset.day === w.label && e.dataset.range.split("-")[0] === fmtMin(w.start));
     if (el) {
       el.classList.add("slot-pick");
       if (!first) first = el;
